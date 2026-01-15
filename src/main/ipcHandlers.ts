@@ -2,6 +2,7 @@ import { ipcMain, BrowserWindow } from 'electron'
 import Store from 'electron-store'
 import { appendTaskToSheet, logViaWebApp } from './sheets'
 import { registerShortcuts } from './shortcut'
+import { initWellness } from './wellness'
 import fs from 'fs'
 
 // Fix for Store is not a constructor error in CJS/ESM interop
@@ -19,7 +20,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
       webAppUrl: store.get('webAppUrl', ''),
       connectionType: store.get('connectionType', 'service'),
       wellnessEnabled: store.get('wellnessEnabled', true),
-      wellnessInterval: store.get('wellnessInterval', 20),
+      wellnessInterval: store.get('wellnessInterval', 1),
       wellnessBreak: store.get('wellnessBreak', 20)
     }
   })
@@ -36,8 +37,9 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
     store.set('wellnessInterval', settings.wellnessInterval)
     store.set('wellnessBreak', settings.wellnessBreak)
     
-    // Re-register shortcuts with the new key
+    // Re-register shortcuts and wellness with new settings
     registerShortcuts(mainWindow)
+    initWellness(mainWindow)
     
     return { success: true }
   })

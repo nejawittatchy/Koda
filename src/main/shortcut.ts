@@ -1,7 +1,8 @@
 import { globalShortcut, BrowserWindow } from 'electron'
 import Store from 'electron-store'
 
-const store = new (Store as any).default()
+// @ts-ignore: electron-store type mismatch in some environments
+const store = new (Store.default || Store)()
 
 export function registerShortcuts(mainWindow: BrowserWindow): void {
   const shortcut = store.get('shortcut', 'Alt+Shift+L') as string

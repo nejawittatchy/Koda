@@ -1,5 +1,6 @@
 import { app, Tray, Menu, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
+import { getWellnessStatus } from './wellness'
 
 let tray: Tray | null = null
 
@@ -42,8 +43,15 @@ export function createTray(mainWindow: BrowserWindow): Tray {
     }
   ])
 
-  tray.setToolTip('Koda')
+  tray.setToolTip(getWellnessStatus())
   tray.setContextMenu(contextMenu)
+
+  // Update tooltip every second
+  setInterval(() => {
+    if (tray) {
+      tray.setToolTip(getWellnessStatus())
+    }
+  }, 1000)
 
   tray.on('click', () => {
     if (mainWindow.isVisible()) {

@@ -1,4 +1,4 @@
-# task-logger
+# koda
 
 An Electron application with React and TypeScript
 

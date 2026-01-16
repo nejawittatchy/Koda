@@ -2,6 +2,7 @@ import { BrowserWindow, screen, Notification } from 'electron'
 import { join } from 'path'
 import Store from 'electron-store'
 import axios from 'axios'
+import log from 'electron-log'
 
 // @ts-ignore: electron-store type mismatch in some environments
 const store = new (Store.default || Store)()
@@ -21,15 +22,28 @@ export function initQuotes(): void {
 }
 
 function scheduleNextQuote(): void {
-  if (quoteInterval) clearInterval(quoteInterval)
+  if (quoteInterval) {
+    clearInterval(quoteInterval as NodeJS.Timeout)
+    clearTimeout(quoteInterval as NodeJS.Timeout)
+  }
   
-  // Schedule every hour
-  quoteInterval = setInterval(() => {
+  const now = new Date()
+  const delayUntilNextHour =
+    (60 - now.getMinutes()) * 60 * 1000 - now.getSeconds() * 1000 - now.getMilliseconds()
+
+  log.info(`[Quotes] Scheduling first quote in ${delayUntilNextHour / 1000 / 60} minutes`)
+
+  // Use a named function to handle the recurring logic
+  const triggerAndReschedule = (): void => {
+    log.info('[Quotes] Triggering scheduled quote')
     fetchAndNotifyQuote()
-  }, 60 * 60 * 1000)
-  
-  // Also trigger one soon for testing/initialization if enabled (but maybe not immediately to avoid spam)
-  // setTimeout(fetchAndNotifyQuote, 5000); 
+    quoteInterval = setInterval(() => {
+      log.info('[Quotes] Triggering hourly quote')
+      fetchAndNotifyQuote()
+    }, 60 * 60 * 1000)
+  }
+
+  quoteInterval = setTimeout(triggerAndReschedule, delayUntilNextHour)
 }
 
 export function stopQuotes(): void {
@@ -56,7 +70,7 @@ export async function fetchAndNotifyQuote(): Promise<void> {
 
     notification.show()
   } catch (error) {
-    console.error('Failed to fetch quote:', error)
+    log.error('[Quotes] Failed to fetch quote:', error)
   }
 }
 

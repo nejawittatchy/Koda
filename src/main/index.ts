@@ -7,6 +7,7 @@ import { registerShortcuts, unregisterShortcuts } from './shortcut'
 import { setupIpcHandlers } from './ipcHandlers'
 import { initWellness } from './wellness'
 import { initQuotes } from './quotes'
+import { initUpdater } from './updater'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -55,6 +56,7 @@ app.whenReady().then(() => {
     registerShortcuts(mainWindow)
     initWellness(mainWindow)
     initQuotes()
+    initUpdater(mainWindow)
   }
 
   app.on('activate', function () {

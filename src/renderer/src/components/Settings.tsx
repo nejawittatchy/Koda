@@ -18,6 +18,7 @@ export const Settings = ({ onClose }: SettingsProps): React.JSX.Element => {
     const [wellnessInterval, setWellnessInterval] = useState(20)
     const [wellnessBreak, setWellnessBreak] = useState(20)
     const [quotesEnabled, setQuotesEnabled] = useState(false)
+    const [updateStatus, setUpdateStatus] = useState<{ status: string, info?: any, progress?: any, error?: string } | null>(null)
 
     useEffect(() => {
         const loadSettings = async (): Promise<void> => {
@@ -35,6 +36,15 @@ export const Settings = ({ onClose }: SettingsProps): React.JSX.Element => {
             setLoading(false)
         }
         loadSettings()
+
+        // Listen for updater status
+        const removeListener = window.electron.ipcRenderer.on('updater-status', (_event, status) => {
+            setUpdateStatus(status)
+        })
+
+        return () => {
+            if (removeListener) removeListener()
+        }
     }, [])
 
     const handleSave = async (): Promise<void> => {
@@ -229,6 +239,57 @@ export const Settings = ({ onClose }: SettingsProps): React.JSX.Element => {
                         <p style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '0.5rem' }}>
                             Receive a random quote every hour. Click the notification to view it in full screen.
                         </p>
+                    </div>
+
+                    <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', marginTop: '0.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                            <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--primary)' }}>Updates</span>
+                            <button
+                                onClick={() => window.electron.ipcRenderer.invoke('check-for-updates')}
+                                disabled={updateStatus?.status === 'checking' || updateStatus?.status === 'downloading'}
+                                style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', background: 'var(--primary)', border: 'none' }}
+                            >
+                                {updateStatus?.status === 'checking' ? 'Checking...' : 'Check now'}
+                            </button>
+                        </div>
+
+                        {updateStatus && (
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '0.5rem' }}>
+                                {updateStatus.status === 'checking' && <p>Checking for updates...</p>}
+                                {updateStatus.status === 'available' && (
+                                    <div>
+                                        <p style={{ color: '#4ade80' }}>Update available: {updateStatus.info?.version}</p>
+                                        <button
+                                            onClick={() => window.electron.ipcRenderer.invoke('download-update')}
+                                            style={{ marginTop: '0.5rem', width: '100%', fontSize: '0.7rem' }}
+                                        >
+                                            Download Update
+                                        </button>
+                                    </div>
+                                )}
+                                {updateStatus.status === 'not-available' && <p>You are on the latest version.</p>}
+                                {updateStatus.status === 'downloading' && (
+                                    <div>
+                                        <p>Downloading: {Math.round(updateStatus.progress?.percent || 0)}%</p>
+                                        <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', marginTop: '0.25rem' }}>
+                                            <div style={{ width: `${updateStatus.progress?.percent || 0}%`, height: '100%', background: 'var(--primary)', borderRadius: '2px' }} />
+                                        </div>
+                                    </div>
+                                )}
+                                {updateStatus.status === 'downloaded' && (
+                                    <div>
+                                        <p style={{ color: '#4ade80' }}>Update ready!</p>
+                                        <button
+                                            onClick={() => window.electron.ipcRenderer.invoke('install-update')}
+                                            style={{ marginTop: '0.5rem', width: '100%', fontSize: '0.7rem' }}
+                                        >
+                                            Restart and Install
+                                        </button>
+                                    </div>
+                                )}
+                                {updateStatus.status === 'error' && <p style={{ color: '#f87171' }}>Error: {updateStatus.error}</p>}
+                            </div>
+                        )}
                     </div>
 
                     {testStatus && (

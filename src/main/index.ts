@@ -6,6 +6,7 @@ import { createTray } from './tray'
 import { registerShortcuts, unregisterShortcuts } from './shortcut'
 import { setupIpcHandlers } from './ipcHandlers'
 import { initWellness } from './wellness'
+import { initQuotes } from './quotes'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -53,6 +54,7 @@ app.whenReady().then(() => {
     createTray(mainWindow)
     registerShortcuts(mainWindow)
     initWellness(mainWindow)
+    initQuotes()
   }
 
   app.on('activate', function () {

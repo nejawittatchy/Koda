@@ -3,6 +3,7 @@ import Store from 'electron-store'
 import { appendTaskToSheet, logViaWebApp } from './sheets'
 import { registerShortcuts } from './shortcut'
 import { initWellness } from './wellness'
+import { initQuotes, stopQuotes, fetchAndNotifyQuote } from './quotes'
 import fs from 'fs'
 
 // Fix for Store is not a constructor error in CJS/ESM interop
@@ -36,10 +37,13 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
     store.set('wellnessEnabled', settings.wellnessEnabled)
     store.set('wellnessInterval', settings.wellnessInterval)
     store.set('wellnessBreak', settings.wellnessBreak)
+    store.set('quotesEnabled', settings.quotesEnabled)
     
-    // Re-register shortcuts and wellness with new settings
+    // Re-register shortcuts, wellness, and quotes with new settings
     registerShortcuts(mainWindow)
     initWellness(mainWindow)
+    stopQuotes()
+    initQuotes()
     
     return { success: true }
   })
@@ -75,7 +79,13 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
   })
 
   // Handle testing connection
-  ipcMain.handle('test-connection', async (_, settings) => {
+  ipcMain.handle('test-quote', async () => {
+    await fetchAndNotifyQuote()
+    return { success: true }
+  })
+
+  // Handle testing connection
+  ipcMain.handle('test-connection', async (_, settings: any) => {
     try {
       const taskData = {
         date: new Date().toLocaleDateString(),

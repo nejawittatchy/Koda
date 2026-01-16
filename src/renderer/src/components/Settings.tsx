@@ -17,6 +17,7 @@ export const Settings = ({ onClose }: SettingsProps): React.JSX.Element => {
     const [wellnessEnabled, setWellnessEnabled] = useState(true)
     const [wellnessInterval, setWellnessInterval] = useState(20)
     const [wellnessBreak, setWellnessBreak] = useState(20)
+    const [quotesEnabled, setQuotesEnabled] = useState(false)
 
     useEffect(() => {
         const loadSettings = async (): Promise<void> => {
@@ -30,6 +31,7 @@ export const Settings = ({ onClose }: SettingsProps): React.JSX.Element => {
             setWellnessEnabled(settings.wellnessEnabled !== false)
             setWellnessInterval(settings.wellnessInterval || 20)
             setWellnessBreak(settings.wellnessBreak || 20)
+            setQuotesEnabled(settings.quotesEnabled || false)
             setLoading(false)
         }
         loadSettings()
@@ -45,7 +47,8 @@ export const Settings = ({ onClose }: SettingsProps): React.JSX.Element => {
             connectionType,
             wellnessEnabled,
             wellnessInterval,
-            wellnessBreak
+            wellnessBreak,
+            quotesEnabled
         })
         onClose()
     }
@@ -203,6 +206,29 @@ export const Settings = ({ onClose }: SettingsProps): React.JSX.Element => {
                                 </div>
                             </div>
                         )}
+                    </div>
+
+                    <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', marginTop: '0.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--primary)' }}>Quote of the Hour</span>
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                <button
+                                    onClick={() => window.electron.ipcRenderer.invoke('test-quote')}
+                                    style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                                >
+                                    Test Notification
+                                </button>
+                                <input
+                                    type="checkbox"
+                                    checked={quotesEnabled}
+                                    onChange={(e) => setQuotesEnabled(e.target.checked)}
+                                    style={{ width: '1.2rem', height: '1.2rem' }}
+                                />
+                            </div>
+                        </div>
+                        <p style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '0.5rem' }}>
+                            Receive a random quote every hour. Click the notification to view it in full screen.
+                        </p>
                     </div>
 
                     {testStatus && (

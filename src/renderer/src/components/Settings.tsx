@@ -5,12 +5,9 @@ interface SettingsProps {
 }
 
 export const Settings = ({ onClose }: SettingsProps): React.JSX.Element => {
-    const [sheetId, setSheetId] = useState('')
-    const [tabName, setTabName] = useState('Sheet1')
+    const [tabName, setTabName] = useState('')
     const [shortcut, setShortcut] = useState('Alt+Shift+L')
-    const [keyFilePath, setKeyFilePath] = useState('')
     const [webAppUrl, setWebAppUrl] = useState('')
-    const [connectionType, setConnectionType] = useState<'service' | 'webapp'>('service')
     const [loading, setLoading] = useState(true)
     const [testStatus, setTestStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null)
     const [testing, setTesting] = useState(false)
@@ -23,12 +20,8 @@ export const Settings = ({ onClose }: SettingsProps): React.JSX.Element => {
     useEffect(() => {
         const loadSettings = async (): Promise<void> => {
             const settings = await window.electron.ipcRenderer.invoke('get-settings')
-            setSheetId(settings.sheetId || '')
-            setTabName(settings.tabName || 'Sheet1')
-            setShortcut(settings.shortcut || 'Alt+Shift+L')
-            setKeyFilePath(settings.keyFilePath || '')
+            setTabName(settings.tabName || '')
             setWebAppUrl(settings.webAppUrl || '')
-            setConnectionType(settings.connectionType || 'service')
             setWellnessEnabled(settings.wellnessEnabled !== false)
             setWellnessInterval(settings.wellnessInterval || 20)
             setWellnessBreak(settings.wellnessBreak || 20)
@@ -49,12 +42,9 @@ export const Settings = ({ onClose }: SettingsProps): React.JSX.Element => {
 
     const handleSave = async (): Promise<void> => {
         await window.electron.ipcRenderer.invoke('save-settings', {
-            sheetId,
             tabName,
             shortcut,
-            keyFilePath,
             webAppUrl,
-            connectionType,
             wellnessEnabled,
             wellnessInterval,
             wellnessBreak,
@@ -68,11 +58,8 @@ export const Settings = ({ onClose }: SettingsProps): React.JSX.Element => {
         setTestStatus(null)
         try {
             const result = await window.electron.ipcRenderer.invoke('test-connection', {
-                sheetId,
                 tabName,
-                keyFilePath,
-                webAppUrl,
-                connectionType
+                webAppUrl
             })
 
             if (result.success) {
@@ -96,72 +83,20 @@ export const Settings = ({ onClose }: SettingsProps): React.JSX.Element => {
             <div style={{ marginTop: '2.5rem', flex: 1, overflowY: 'auto' }}>
                 <h2 style={{ fontFamily: 'Outfit', fontSize: '1.25rem', marginBottom: '1rem' }}>Settings</h2>
 
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.05)', padding: '0.25rem', borderRadius: '8px' }}>
-                    <button
-                        onClick={() => setConnectionType('service')}
-                        style={{
-                            flex: 1,
-                            padding: '0.5rem',
-                            fontSize: '0.75rem',
-                            background: connectionType === 'service' ? 'var(--primary)' : 'transparent',
-                            color: connectionType === 'service' ? 'white' : 'var(--text-dim)'
-                        }}
-                    >
-                        Service Account
-                    </button>
-                    <button
-                        onClick={() => setConnectionType('webapp')}
-                        style={{
-                            flex: 1,
-                            padding: '0.5rem',
-                            fontSize: '0.75rem',
-                            background: connectionType === 'webapp' ? 'var(--primary)' : 'transparent',
-                            color: connectionType === 'webapp' ? 'white' : 'var(--text-dim)'
-                        }}
-                    >
-                        Web App URL
-                    </button>
-                </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingRight: '0.5rem' }}>
-                    {connectionType === 'service' ? (
-                        <>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                <label style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>Google Spreadsheet ID</label>
-                                <input
-                                    type="text"
-                                    value={sheetId || ''}
-                                    onChange={(e) => setSheetId(e.target.value)}
-                                    placeholder="Enter Spreadsheet ID"
-                                />
-                            </div>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                <label style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>Service Account Key (Path)</label>
-                                <input
-                                    type="text"
-                                    value={keyFilePath || ''}
-                                    onChange={(e) => setKeyFilePath(e.target.value)}
-                                    placeholder="C:\path\to\key.json"
-                                />
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                <label style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>Google Apps Script URL</label>
-                                <input
-                                    type="text"
-                                    value={webAppUrl || ''}
-                                    onChange={(e) => setWebAppUrl(e.target.value)}
-                                    placeholder="https://script.google.com/macros/s/.../exec"
-                                />
-                                <p style={{ fontSize: '0.65rem', color: 'var(--text-dim)', marginTop: '0.25rem' }}>
-                                    Use this if Google Cloud Console is disabled.
-                                </p>
-                            </div>
-                        </>
-                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <label style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>Google Apps Script URL</label>
+                        <input
+                            type="text"
+                            value={webAppUrl || ''}
+                            onChange={(e) => setWebAppUrl(e.target.value)}
+                            placeholder="https://script.google.com/macros/s/.../exec"
+                        />
+                        <p style={{ fontSize: '0.65rem', color: 'var(--text-dim)', marginTop: '0.25rem' }}>
+                            Deploy your script as a Web App to log tasks.
+                        </p>
+                    </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                         <label style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>Tab Name</label>

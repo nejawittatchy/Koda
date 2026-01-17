@@ -48,6 +48,11 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  // Set the App User Model ID for Windows notifications to show "Koda" instead of "com.electron"
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('Koda')
+  }
+
   createWindow()
 
   if (mainWindow) {

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Send, Settings as SettingsIcon } from 'lucide-react'
+import { Send, Settings as SettingsIcon, Phone, CheckSquare } from 'lucide-react'
 import { Settings } from './Settings'
 
 interface Message {
@@ -9,7 +9,10 @@ interface Message {
     timestamp: Date
 }
 
+type Mode = 'task' | 'call'
+
 export const ChatInterface = (): React.JSX.Element => {
+    const [mode, setMode] = useState<Mode>('task')
     const [messages, setMessages] = useState<Message[]>([
         { id: '1', text: 'Hi! Let\'s log your task. What did you work on?', sender: 'ai', timestamp: new Date() }
     ])
@@ -23,12 +26,28 @@ export const ChatInterface = (): React.JSX.Element => {
         }
     }, [messages])
 
-    // Listen for 'open-settings' from main process (tray menu)
+    // Listen for events from main process
     useEffect(() => {
         const handleOpenSettings = (): void => setShowSettings(true)
-        window.electron.ipcRenderer.on('open-settings', handleOpenSettings)
+
+        const handleSwitchMode = (_event: any, newMode: Mode): void => {
+            setMode(newMode)
+            setMessages(prev => [...prev, {
+                id: Date.now().toString(),
+                text: newMode === 'task'
+                    ? 'Switched to Task Mode. Format: Duration | Customer | Task | Status | Remark'
+                    : 'Switched to Call Mode. Format: Duration | Type (I/O) | Customer | Reason | Status | Remark',
+                sender: 'ai',
+                timestamp: new Date()
+            }])
+        }
+
+        const cleanupSettings = window.electron.ipcRenderer.on('open-settings', handleOpenSettings)
+        const cleanupMode = window.electron.ipcRenderer.on('switch-mode', handleSwitchMode)
+
         return () => {
-            window.electron.ipcRenderer.removeAllListeners('open-settings')
+            if (cleanupSettings) cleanupSettings()
+            if (cleanupMode) cleanupMode()
         }
     }, [])
 
@@ -47,40 +66,69 @@ export const ChatInterface = (): React.JSX.Element => {
         setInput('')
 
         try {
-            // Basic parsing logic: "Duration | Customer | Task | Status | Remark"
-            // Split by pipe or fallback to defaults
-            const parts = currentInput.split('|').map(p => p.trim())
+            if (mode === 'task') {
+                // Task Parsing: "Duration | Customer | Task | Status | Remark"
+                const parts = currentInput.split('|').map(p => p.trim())
+                const taskEntry = {
+                    date: new Date().toLocaleDateString(),
+                    duration: parts[0] || 'N/A',
+                    customer: parts[1] || 'N/A',
+                    issue: parts[2] || (parts.length === 1 ? currentInput : 'N/A'),
+                    status: parts[3] || 'Logged',
+                    remark: parts[4] || ''
+                }
 
-            const taskEntry = {
-                date: new Date().toLocaleDateString(),
-                duration: parts[0] || 'N/A',
-                customer: parts[1] || 'N/A',
-                issue: parts[2] || (parts.length === 1 ? currentInput : 'N/A'),
-                status: parts[3] || 'Logged',
-                remark: parts[4] || ''
-            }
+                const result = await window.electron.ipcRenderer.invoke('log-task', taskEntry)
 
-            const result = await window.electron.ipcRenderer.invoke('log-task', taskEntry)
-
-            if (result.success) {
-                setMessages(prev => [...prev, {
-                    id: (Date.now() + 1).toString(),
-                    text: `✅ Logged: ${taskEntry.duration} for ${taskEntry.customer}`,
-                    sender: 'ai',
-                    timestamp: new Date()
-                }])
+                if (result.success) {
+                    setMessages(prev => [...prev, {
+                        id: (Date.now() + 1).toString(),
+                        text: `✅ Task Logged: ${taskEntry.duration} for ${taskEntry.customer}`,
+                        sender: 'ai',
+                        timestamp: new Date()
+                    }])
+                } else {
+                    setMessages(prev => [...prev, {
+                        id: (Date.now() + 2).toString(),
+                        text: `❌ Error: ${result.error || 'Check settings'}`,
+                        sender: 'ai',
+                        timestamp: new Date()
+                    }])
+                }
             } else {
-                setMessages(prev => [...prev, {
-                    id: (Date.now() + 2).toString(),
-                    text: `❌ Error: ${result.error || 'Check settings'}`,
-                    sender: 'ai',
-                    timestamp: new Date()
-                }])
+                // Call Parsing: "Duration | Type | Customer | Reason | Status | Remark"
+                const parts = currentInput.split('|').map(p => p.trim())
+                const callEntry = {
+                    duration: parts[0] || 'N/A',
+                    type: parts[1] || 'I', // Default Incoming
+                    customer: parts[2] || 'N/A',
+                    reason: parts[3] || (parts.length === 1 ? currentInput : 'N/A'),
+                    status: parts[4] || 'Logged',
+                    remark: parts[5] || ''
+                }
+
+                const result = await window.electron.ipcRenderer.invoke('log-call', callEntry)
+
+                if (result.success) {
+                    setMessages(prev => [...prev, {
+                        id: (Date.now() + 1).toString(),
+                        text: `✅ Call Logged #${result.sn?.dailySN || '?'} (${result.sn?.cumulativeSN || '?'})`,
+                        sender: 'ai',
+                        timestamp: new Date()
+                    }])
+                } else {
+                    setMessages(prev => [...prev, {
+                        id: (Date.now() + 2).toString(),
+                        text: `❌ Error: ${result.error || 'Check settings'}`,
+                        sender: 'ai',
+                        timestamp: new Date()
+                    }])
+                }
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             setMessages(prev => [...prev, {
                 id: (Date.now() + 3).toString(),
-                text: `❌ Error: ${error.message}`,
+                text: `❌ Error: ${(error instanceof Error ? error.message : String(error))}`,
                 sender: 'ai',
                 timestamp: new Date()
             }])
@@ -95,9 +143,23 @@ export const ChatInterface = (): React.JSX.Element => {
                 <div className="draggable-header" />
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', marginTop: '1.5rem' }}>
-                    <div>
-                        <h2 style={{ fontFamily: 'Outfit', fontSize: '1.25rem' }}>Koda</h2>
-                        <p style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>Your Personal Wellbeing Companion</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{
+                            width: '32px', height: '32px', borderRadius: '8px',
+                            background: mode === 'task' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(168, 85, 247, 0.2)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: mode === 'task' ? '#38bdf8' : '#a855f7'
+                        }}>
+                            {mode === 'task' ? <CheckSquare size={18} /> : <Phone size={18} />}
+                        </div>
+                        <div>
+                            <h2 style={{ fontFamily: 'Outfit', fontSize: '1.1rem', transition: 'all 0.3s' }}>
+                                {mode === 'task' ? 'Task Logger' : 'Call Logger'}
+                            </h2>
+                            <p style={{ fontSize: '0.65rem', color: 'var(--text-dim)' }}>
+                                {mode === 'task' ? 'Alt+Shift+L' : 'Alt+Shift+K'}
+                            </p>
+                        </div>
                     </div>
                     <button
                         onClick={() => setShowSettings(true)}
@@ -138,7 +200,7 @@ export const ChatInterface = (): React.JSX.Element => {
                                 handleSend()
                             }
                         }}
-                        placeholder="Duration | Customer | Task..."
+                        placeholder={mode === 'task' ? "Duration | Customer | Task..." : "Duration | Type | Customer..."}
                         rows={1}
                         style={{
                             flex: 1,
@@ -146,10 +208,11 @@ export const ChatInterface = (): React.JSX.Element => {
                             resize: 'none',
                             maxHeight: '100px',
                             paddingTop: '0.75rem',
-                            overflowY: 'auto'
+                            overflowY: 'auto',
+                            borderColor: mode === 'task' ? 'rgba(255,255,255,0.1)' : 'rgba(168, 85, 247, 0.3)'
                         }}
                     />
-                    <button onClick={handleSend} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '48px', height: '42px', padding: '0', flexShrink: 0 }}>
+                    <button onClick={handleSend} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '48px', height: '42px', padding: '0', flexShrink: 0, background: mode === 'task' ? 'var(--primary)' : '#a855f7' }}>
                         <Send size={18} />
                     </button>
                 </div>

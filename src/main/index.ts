@@ -8,6 +8,7 @@ import { setupIpcHandlers } from './ipcHandlers'
 import { initWellness } from './wellness'
 import { initQuotes } from './quotes'
 import { initUpdater } from './updater'
+import { registerStartup } from './startup'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -52,6 +53,9 @@ app.whenReady().then(() => {
   if (process.platform === 'win32') {
     app.setAppUserModelId('Koda')
   }
+
+  // Register app to run on startup (first run only)
+  registerStartup()
 
   createWindow()
 
